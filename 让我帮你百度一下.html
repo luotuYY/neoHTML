@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>让我帮你百度一下 | Let Me Baidu That For You</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #fff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 140px;
+  }
+
+  /* 标题：让我帮你 Baidu 一下 */
+  .title {
+    font-size: 36px;
+    font-weight: bold;
+    color: #000;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .title .baidu {
+    display: inline-flex;
+    align-items: center;
+    position: relative;
+    margin: 0 4px;
+  }
+  .title .baidu .Bai { color: #e60012; font-weight: 900; letter-spacing: -2px; }
+  .title .baidu .du  { color: #306eff; font-weight: 900; letter-spacing: -2px; position: relative; }
+  .paw {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 38px;
+    height: 26px;
+  }
+
+  /* 搜索行 */
+  .search-row {
+    display: flex;
+    width: 480px;
+    max-width: 90vw;
+  }
+  .search-row input[type="text"] {
+    flex: 1;
+    height: 38px;
+    border: 2px solid #b8b8b8;
+    border-right: none;
+    padding: 0 10px;
+    font-size: 15px;
+    outline: none;
+  }
+  .search-row input[type="text"].focused { border-color: #4e6ef2; }
+  .btn {
+    background: #4e6ef2;
+    color: #fff;
+    border: none;
+    height: 38px;
+    padding: 0 28px;
+    font-size: 15px;
+    cursor: pointer;
+    border-radius: 0;
+    transition: background 0.15s;
+  }
+  .btn.pressed { background: #2f4bb3; }
+
+  /* 提示文字 */
+  .hint {
+    margin-top: 50px;
+    color: #999;
+    font-size: 18px;
+  }
+
+  /* 底部链接 */
+  .footer-links {
+    margin-top: 90px;
+    color: #333;
+    font-size: 15px;
+  }
+  .footer-links a { color: #333; }
+  .copyright {
+    margin-top: 22px;
+    color: #aaa;
+    font-size: 13px;
+  }
+
+  /* 生成链接后的区域 */
+  .result-area { display: none; margin-top: 50px; text-align: center; }
+  .result-area .copy-tip { color: #999; font-size: 18px; margin-bottom: 22px; }
+  .result-url {
+    width: 480px;
+    max-width: 90vw;
+    height: 36px;
+    border: 2px solid #b8b8b8;
+    padding: 0 10px;
+    font-size: 14px;
+    background: #f5f5f5;
+    margin-bottom: 16px;
+  }
+  .result-buttons { display: flex; gap: 12px; justify-content: center; }
+
+  /* ============ 动画页面 ============ */
+  #anim-page { display: none; }
+  .step-text {
+    margin-top: 50px;
+    color: #999;
+    font-size: 18px;
+    text-align: center;
+    min-height: 27px;
+  }
+
+  /* 打字时的竖线光标 */
+  .cursor {
+    position: absolute;
+    width: 2px;
+    height: 22px;
+    top: 8px;            /* 垂直居中于 38px 高的输入框，与文字对齐 */
+    background: #333;
+    animation: blink 0.8s infinite;
+    pointer-events: none;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ====== 鼠标指针 ====== */
+  .mouse-pointer {
+    position: fixed;
+    width: 28px;
+    height: 40px;
+    left: -60px;        /* 初始在屏幕左上角外 */
+    top: -60px;
+    z-index: 9999;
+    pointer-events: none;
+    /* 平滑移动 */
+    transition: left 0.9s cubic-bezier(0.25, 0.1, 0.25, 1),
+                top  0.9s cubic-bezier(0.25, 0.1, 0.25, 1);
+    filter: drop-shadow(1px 2px 2px rgba(0,0,0,0.3));
+  }
+  .mouse-pointer svg { display: block; }
+  /* 按下时整体缩小一点，模拟点击 */
+  .mouse-pointer.clicking svg {
+    transform: scale(0.85);
+    transform-origin: 0 0;
+  }
+  .mouse-pointer svg { transition: transform 0.1s; }
+</style>
+</head>
+<body>
+
+<!-- 模拟鼠标指针（动画页专用，全局 fixed） -->
+<div class="mouse-pointer" id="mouse">
+  <!-- 经典白色箭头光标 -->
+  <svg width="28" height="40" viewBox="0 0 28 40">
+    <path d="M2 2 L2 32 L9 26 L14 38 L18 36 L13 25 L22 25 Z"
+          fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/>
+  </svg>
+</div>
+
+<!-- ========== 主页 ========== -->
+<div id="home">
+  <div class="title">
+    <span>让我帮你</span>
+    <span class="baidu">
+      <span class="Bai">Bai</span><span class="du">du</span>
+      <svg class="paw" viewBox="0 0 40 28">
+        <ellipse cx="20" cy="18" rx="8" ry="6" fill="#306eff"/>
+        <ellipse cx="8"  cy="10" rx="3.5" ry="4.5" fill="#306eff"/>
+        <ellipse cx="15" cy="5"  rx="3.5" ry="4.5" fill="#306eff"/>
+        <ellipse cx="25" cy="5"  rx="3.5" ry="4.5" fill="#306eff"/>
+        <ellipse cx="32" cy="10" rx="3.5" ry="4.5" fill="#306eff"/>
+      </svg>
+    </span>
+    <span style="color:#e60012;font-weight:900">百度</span>
+    <span>一下</span>
+  </div>
+
+  <div class="search-row">
+    <input type="text" id="kw" placeholder="">
+    <button class="btn" onclick="generateLink()">百度一下</button>
+  </div>
+
+  <div class="hint" id="home-hint">输入一个问题，然后点击百度一下</div>
+
+  <div class="result-area" id="result-area">
+    <div class="copy-tip">复制下面的地址</div>
+    <input type="text" class="result-url" id="result-url" readonly>
+    <div class="result-buttons">
+      <button class="btn" onclick="copyUrl()">复制</button>
+      <button class="btn" onclick="preview()">预览</button>
+    </div>
+  </div>
+
+  <div class="footer-links">
+    更多：<a href="#" onclick="alert('这是演示页，等价于当前主页');return false;">帮你百度一下</a> |
+    <a href="#" onclick="alert('这是演示页，谷歌版逻辑相同，只是最后跳转到 google.com 搜索');return false;">帮你谷歌一下</a>
+  </div>
+  <div class="copyright">Copyright © bdfy</div>
+</div>
+
+<!-- ========== 动画演示页 ========== -->
+<div id="anim-page">
+  <div class="title">
+    <span>让我帮你</span>
+    <span class="baidu">
+      <span class="Bai">Bai</span><span class="du">du</span>
+      <svg class="paw" viewBox="0 0 40 28">
+        <ellipse cx="20" cy="18" rx="8" ry="6" fill="#306eff"/>
+        <ellipse cx="8"  cy="10" rx="3.5" ry="4.5" fill="#306eff"/>
+        <ellipse cx="15" cy="5"  rx="3.5" ry="4.5" fill="#306eff"/>
+        <ellipse cx="25" cy="5"  rx="3.5" ry="4.5" fill="#306eff"/>
+        <ellipse cx="32" cy="10" rx="3.5" ry="4.5" fill="#306eff"/>
+      </svg>
+    </span>
+    <span style="color:#e60012;font-weight:900">百度</span>
+    <span>一下</span>
+  </div>
+
+  <div class="search-row" id="anim-search-row" style="position:relative;">
+    <input type="text" id="anim-input" readonly>
+    <button class="btn" id="anim-btn">百度一下</button>
+    <div class="cursor" id="cursor" style="display:none; left:10px;"></div>
+  </div>
+
+  <div class="step-text" id="step-text"></div>
+</div>
+
+<script>
+  let keyword = '';
+  const mouse = document.getElementById('mouse');
+
+  function generateLink() {
+    keyword = document.getElementById('kw').value.trim();
+    if (!keyword) { alert('请先输入一个问题'); return; }
+    const url = location.origin + location.pathname + '?' + encodeURIComponent(keyword);
+    document.getElementById('result-url').value = url;
+    document.getElementById('home-hint').style.display = 'none';
+    document.getElementById('result-area').style.display = 'block';
+  }
+
+  function copyUrl() {
+    const u = document.getElementById('result-url');
+    u.select();
+    document.execCommand('copy');
+    alert('链接已复制：' + u.value);
+  }
+
+  window.addEventListener('load', () => {
+    const q = location.search.replace(/^\?/, '');
+    if (q) {
+      keyword = decodeURIComponent(q);
+      playAnimation();
+    } else {
+      mouse.style.display = 'none';
+    }
+  });
+
+  function preview() { playAnimation(); }
+
+  // 把鼠标指针移到某个元素的"热点位置"（箭头尖端对准元素中心偏左上一点）
+  function moveMouseTo(el, offsetX = 0, offsetY = 0) {
+    const r = el.getBoundingClientRect();
+    // 箭头尖端在 svg 里约 (2, 2)，所以 left/top 直接用目标坐标
+    mouse.style.left = (r.left + offsetX) + 'px';
+    mouse.style.top  = (r.top  + offsetY) + 'px';
+  }
+
+  // 模拟一次点击：指针缩小一下，再弹回
+  function clickMouse(cb) {
+    mouse.classList.add('clicking');
+    setTimeout(() => {
+      mouse.classList.remove('clicking');
+      cb && cb();
+    }, 150);
+  }
+
+  function playAnimation() {
+    document.getElementById('home').style.display = 'none';
+    document.getElementById('anim-page').style.display = 'flex';
+    document.getElementById('anim-page').style.flexDirection = 'column';
+    document.getElementById('anim-page').style.alignItems = 'center';
+
+    const stepText = document.getElementById('step-text');
+    const input = document.getElementById('anim-input');
+    const cursor = document.getElementById('cursor');
+    const btn = document.getElementById('anim-btn');
+
+    // 鼠标指针重新从左上角入场
+    mouse.style.display = 'block';
+    mouse.style.left = '-60px';
+    mouse.style.top  = '-60px';
+
+    // 等一帧让初始位置生效
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+
+      // ===== 第 1 步：鼠标从左上角滑向输入框 =====
+      stepText.textContent = '1、移动鼠标，找到搜索输入框';
+
+      // 输入框内部左侧作为落点
+      const inputRect = input.getBoundingClientRect();
+      const targetX = inputRect.left + 30;   // 落点在输入框里靠左
+      const targetY = inputRect.top + inputRect.height / 2;
+
+      // 先触发一次移动
+      mouse.style.left = targetX + 'px';
+      mouse.style.top  = targetY + 'px';
+
+      // 0.9s 移动完成后，模拟点击输入框
+      setTimeout(() => {
+        stepText.textContent = '2、点击输入框，让它获得焦点';
+        clickMouse(() => {
+          input.classList.add('focused');
+
+          // ===== 第 3 步：逐字输入 =====
+          setTimeout(() => {
+            stepText.textContent = '3、输入你要搜索的问题';
+            // 隐藏鼠标箭头，露出打字竖线光标
+            mouse.style.opacity = '0';
+            cursor.style.display = 'block';
+            let i = 0;
+            const timer = setInterval(() => {
+              input.value = keyword.slice(0, i + 1);
+              cursor.style.left = (10 + (i + 1) * 14) + 'px';
+              i++;
+              if (i >= keyword.length) {
+                clearInterval(timer);
+                // 输完后，鼠标重新出现，停在文字末尾附近
+                setTimeout(() => {
+                  stepText.textContent = '4、移动鼠标，点击「百度一下」按钮';
+                  mouse.style.opacity = '1';
+                  cursor.style.display = 'none';
+                  // 从输入框末尾平滑滑到按钮上
+                  moveMouseTo(btn, btn.getBoundingClientRect().width / 2 - 10, btn.getBoundingClientRect().height / 2);
+
+                  setTimeout(() => {
+                    clickMouse(() => {
+                      btn.classList.add('pressed');
+                      setTimeout(() => {
+                        location.href = 'https://www.baidu.com/s?wd=' + encodeURIComponent(keyword);
+                      }, 800);
+                    });
+                  }, 950); // 等 0.9s 移动动画走完
+                }, 400);
+              }
+            }, 180);
+          }, 300);
+        });
+      }, 950); // 对应 CSS transition 0.9s
+    }));
+  }
+</script>
+</body>
+</html>
+<!-- （注：内容由AI生成） -->
